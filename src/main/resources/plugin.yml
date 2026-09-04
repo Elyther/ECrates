@@ -1,0 +1,21 @@
+name: ECrates
+version: 1.0.0
+main: com.elyther.ecrates.ECrates
+api-version: '1.21'
+author: Elyther
+description: A GUI based virtual crate plugin with selectable rewards and timers.
+
+softdepend:
+  - PlaceholderAPI
+
+commands:
+  crate:
+    description: ECrates main command
+    usage: /crate
+    aliases:
+      - crates
+
+permissions:
+  ecrates.admin:
+    description: Allows administration of ECrates
+    default: op
