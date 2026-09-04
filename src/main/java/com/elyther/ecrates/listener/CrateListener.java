@@ -2,9 +2,7 @@ package com.elyther.ecrates.listener;
 
 import com.elyther.ecrates.ECrates;
 import com.elyther.ecrates.gui.CrateGUI;
-import com.elyther.ecrates.manager.KeyManager;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
@@ -19,9 +17,12 @@ public class CrateListener implements Listener {
     }
 
     @EventHandler
-    public void onInteract(PlayerInteractEvent event) {
+    public void onInteract(
+            PlayerInteractEvent event
+    ) {
 
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+        if (event.getAction()
+                != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
 
@@ -32,7 +33,8 @@ public class CrateListener implements Listener {
         String crate =
                 plugin.getCrateManager()
                         .getCrateAt(
-                                event.getClickedBlock().getLocation()
+                                event.getClickedBlock()
+                                        .getLocation()
                         );
 
         if (crate == null) {
@@ -41,13 +43,18 @@ public class CrateListener implements Listener {
 
         event.setCancelled(true);
 
-        Player player = event.getPlayer();
+        if (plugin.getKeyManager()
+                .getKeys(
+                        event.getPlayer(),
+                        crate
+                ) <= 0) {
 
-        if (!hasKey(player, crate)) {
-
-            player.sendMessage(
-                    ChatColor.RED +
-                            "You don't have a key for this crate."
+            event.getPlayer().sendMessage(
+                    plugin.getMessageManager()
+                            .get(
+                                    event.getPlayer(),
+                                    "no-key"
+                            )
             );
 
             return;
@@ -55,21 +62,8 @@ public class CrateListener implements Listener {
 
         CrateGUI.open(
                 plugin,
-                player,
+                event.getPlayer(),
                 crate
         );
-    }
-
-    private boolean hasKey(Player player, String crate) {
-
-        for (var item :
-                player.getInventory().getContents()) {
-
-            if (KeyManager.isKey(item, crate)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
