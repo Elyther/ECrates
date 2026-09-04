@@ -17,14 +17,17 @@ public class CrateManager {
     private final Map<String, List<ItemStack>> rewards = new HashMap<>();
     private final Map<String, Set<String>> locations = new HashMap<>();
 
-    private File file;
+    private final File file;
     private YamlConfiguration data;
 
     public CrateManager(ECrates plugin) {
 
         this.plugin = plugin;
 
-        file = new File(plugin.getDataFolder(), "data.yml");
+        file = new File(
+                plugin.getDataFolder(),
+                "data.yml"
+        );
 
         if (!file.exists()) {
             try {
@@ -44,32 +47,46 @@ public class CrateManager {
         rewards.clear();
         locations.clear();
 
-        for (String crate : plugin.getConfig().getConfigurationSection("crates").getKeys(false)) {
+        var section =
+                plugin.getConfig()
+                        .getConfigurationSection("crates");
 
-            List<ItemStack> list = new ArrayList<>();
+        if (section == null) {
+            return;
+        }
 
-            if (data.contains("rewards." + crate)) {
+        for (String crate : section.getKeys(false)) {
 
-                List<?> raw = data.getList("rewards." + crate);
+            List<ItemStack> items = new ArrayList<>();
 
-                if (raw != null) {
-                    for (Object obj : raw) {
-                        if (obj instanceof ItemStack item) {
-                            list.add(item);
-                        }
+            List<?> raw =
+                    data.getList("rewards." + crate);
+
+            if (raw != null) {
+
+                for (Object object : raw) {
+
+                    if (object instanceof ItemStack item) {
+                        items.add(item.clone());
                     }
                 }
             }
 
-            rewards.put(crate, list);
+            rewards.put(crate, items);
 
-            Set<String> locs = new HashSet<>();
+            Set<String> crateLocations =
+                    new HashSet<>();
 
-            if (data.contains("locations." + crate)) {
-                locs.addAll(data.getStringList("locations." + crate));
-            }
+            crateLocations.addAll(
+                    data.getStringList(
+                            "locations." + crate
+                    )
+            );
 
-            locations.put(crate, locs);
+            locations.put(
+                    crate,
+                    crateLocations
+            );
         }
     }
 
@@ -84,7 +101,12 @@ public class CrateManager {
 
             data.set(
                     "locations." + crate,
-                    new ArrayList<>(locations.getOrDefault(crate, new HashSet<>()))
+                    new ArrayList<>(
+                            locations.getOrDefault(
+                                    crate,
+                                    new HashSet<>()
+                            )
+                    )
             );
         }
 
@@ -101,24 +123,53 @@ public class CrateManager {
         load();
     }
 
-    public List<ItemStack> getRewards(String crate) {
-        return rewards.computeIfAbsent(crate, k -> new ArrayList<>());
+    public boolean exists(String crate) {
+
+        return plugin.getConfig()
+                .isConfigurationSection(
+                        "crates." + crate
+                );
     }
 
-    public void setRewards(String crate, List<ItemStack> items) {
-        rewards.put(crate, new ArrayList<>(items));
+    public List<ItemStack> getRewards(String crate) {
+
+        return rewards.computeIfAbsent(
+                crate,
+                k -> new ArrayList<>()
+        );
+    }
+
+    public void setRewards(
+            String crate,
+            List<ItemStack> items
+    ) {
+
+        rewards.put(
+                crate,
+                new ArrayList<>(items)
+        );
+
         save();
     }
 
-    public void addLocation(String crate, Location location) {
+    public void addLocation(
+            String crate,
+            Location location
+    ) {
 
-        locations.computeIfAbsent(crate, k -> new HashSet<>())
+        locations
+                .computeIfAbsent(
+                        crate,
+                        k -> new HashSet<>()
+                )
                 .add(locationKey(location));
 
         save();
     }
 
-    public void removeLocation(Location location) {
+    public void removeLocation(
+            Location location
+    ) {
 
         String key = locationKey(location);
 
@@ -129,29 +180,56 @@ public class CrateManager {
         save();
     }
 
-    public String getCrateAt(Location location) {
+    public String getCrateAt(
+            Location location
+    ) {
 
         String key = locationKey(location);
 
-        for (Map.Entry<String, Set<String>> entry : locations.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry :
+                locations.entrySet()) {
 
             if (entry.getValue().contains(key)) {
-                return entry.getKey();
+
+                Material type =
+                        location.getBlock().getType();
+
+                if (isCrateBlock(type)) {
+                    return entry.getKey();
+                }
+
+                return null;
             }
         }
 
         return null;
     }
 
-    private String locationKey(Location location) {
+    public static boolean isCrateBlock(
+            Material material
+    ) {
 
-        return location.getWorld().getName()
-                + ":" + location.getBlockX()
-                + ":" + location.getBlockY()
-                + ":" + location.getBlockZ();
+        if (material == Material.CHEST) {
+            return true;
+        }
+
+        if (material == Material.ENDER_CHEST) {
+            return true;
+        }
+
+        return material.name().endsWith("_SHULKER_BOX");
     }
 
-    public boolean exists(String crate) {
-        return plugin.getConfig().isConfigurationSection("crates." + crate);
+    private String locationKey(
+            Location location
+    ) {
+
+        return location.getWorld().getName()
+                + ":"
+                + location.getBlockX()
+                + ":"
+                + location.getBlockY()
+                + ":"
+                + location.getBlockZ();
     }
 }
