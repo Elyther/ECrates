@@ -4,11 +4,15 @@ import com.elyther.ecrates.ECrates;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.entity.Player;
 
-public class CratePlaceholder extends PlaceholderExpansion {
+public class CratePlaceholder
+        extends PlaceholderExpansion {
 
     private final ECrates plugin;
 
-    public CratePlaceholder(ECrates plugin) {
+    public CratePlaceholder(
+            ECrates plugin
+    ) {
+
         this.plugin = plugin;
     }
 
@@ -28,12 +32,19 @@ public class CratePlaceholder extends PlaceholderExpansion {
     }
 
     @Override
+    public boolean persist() {
+        return true;
+    }
+
+    @Override
     public String onPlaceholderRequest(
             Player player,
             String params
     ) {
 
-        if (params.startsWith("time_")) {
+        if (params.startsWith(
+                "time_"
+        )) {
 
             String crate =
                     params.substring(5);
@@ -51,7 +62,9 @@ public class CratePlaceholder extends PlaceholderExpansion {
                     );
         }
 
-        if (params.startsWith("seconds_")) {
+        if (params.startsWith(
+                "seconds_"
+        )) {
 
             String crate =
                     params.substring(8);
@@ -59,6 +72,22 @@ public class CratePlaceholder extends PlaceholderExpansion {
             return String.valueOf(
                     plugin.getTimerManager()
                             .getRemainingSeconds(
+                                    player,
+                                    crate
+                            )
+            );
+        }
+
+        if (params.startsWith(
+                "keys_"
+        )) {
+
+            String crate =
+                    params.substring(5);
+
+            return String.valueOf(
+                    plugin.getKeyManager()
+                            .getKeys(
                                     player,
                                     crate
                             )
