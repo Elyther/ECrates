@@ -1,51 +1,121 @@
 package com.elyther.ecrates.manager;
 
 import com.elyther.ecrates.ECrates;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.configuration.file.YamlConfiguration;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.UUID;
 
 public class KeyManager {
 
-    public static NamespacedKey KEY;
+    private final ECrates plugin;
 
-    public static void init(ECrates plugin) {
-        KEY = new NamespacedKey(plugin, "crate_key");
-    }
+    private final File file;
+    private final YamlConfiguration data;
 
-    public static boolean isKey(ItemStack item, String crate) {
+    public KeyManager(ECrates plugin) {
 
-        if (item == null || !item.hasItemMeta()) {
-            return false;
-        }
+        this.plugin = plugin;
 
-        String value = item.getItemMeta()
-                .getPersistentDataContainer()
-                .get(KEY, PersistentDataType.STRING);
+        file = new File(
+                plugin.getDataFolder(),
+                "keys.yml"
+        );
 
-        return crate.equalsIgnoreCase(value);
-    }
+        if (!file.exists()) {
 
-    public static boolean removeKey(Player player, String crate) {
-
-        for (ItemStack item : player.getInventory().getContents()) {
-
-            if (isKey(item, crate)) {
-
-                if (item.getAmount() <= 1) {
-
-                    player.getInventory().remove(item);
-
-                } else {
-
-                    item.setAmount(item.getAmount() - 1);
-                }
-
-                return true;
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 
-        return false;
+        data = YamlConfiguration.loadConfiguration(file);
+    }
+
+    public int getKeys(
+            UUID uuid,
+            String crate
+    ) {
+
+        return data.getInt(
+                "players."
+                        + uuid
+                        + "."
+                        + crate,
+                0
+        );
+    }
+
+    public int getKeys(
+            Player player,
+            String crate
+    ) {
+
+        return getKeys(
+                player.getUniqueId(),
+                crate
+        );
+    }
+
+    public void addKey(
+            Player player,
+            String crate,
+            int amount
+    ) {
+
+        if (amount <= 0) {
+            return;
+        }
+
+        int current =
+                getKeys(player, crate);
+
+        data.set(
+                "players."
+                        + player.getUniqueId()
+                        + "."
+                        + crate,
+                current + amount
+        );
+
+        save();
+    }
+
+    public boolean removeKey(
+            Player player,
+            String crate
+    ) {
+
+        int current =
+                getKeys(player, crate);
+
+        if (current <= 0) {
+            return false;
+        }
+
+        data.set(
+                "players."
+                        + player.getUniqueId()
+                        + "."
+                        + crate,
+                current - 1
+        );
+
+        save();
+
+        return true;
+    }
+
+    public void save() {
+
+        try {
+            data.save(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
