@@ -1,0 +1,59 @@
+# ============================================================
+#                       ECRATES
+# ============================================================
+
+language: en
+
+# Automatically give a key when the timer reaches 00:00
+timer:
+  enabled: true
+
+# Default timer in seconds
+# 3600 = 1 hour
+default-seconds: 3600
+
+# Should the timer restart after giving a key?
+restart-after-key: true
+
+# Maximum distance for /crate create
+create-distance: 6
+
+# GUI settings
+gui:
+  crate-title: "&8&l%crate% Crate"
+  confirm-title: "&8&lConfirm Reward"
+  editor-title: "&8&l%crate% Rewards"
+
+  confirm-slot: 11
+  cancel-slot: 15
+
+# Sounds
+sounds:
+  click: "UI_BUTTON_CLICK"
+  confirm: "ENTITY_PLAYER_LEVELUP"
+  cancel: "UI_BUTTON_CLICK"
+  reward: "ENTITY_PLAYER_LEVELUP"
+  key: "ENTITY_PLAYER_LEVELUP"
+
+# Effects
+effects:
+  enabled: true
+  reward-particles: true
+
+# Crates
+crates:
+
+  common:
+    display-name: "&aCommon"
+    key-name: "&aCommon Key"
+    seconds: 3600
+
+  rare:
+    display-name: "&bRare"
+    key-name: "&bRare Key"
+    seconds: 7200
+
+  epic:
+    display-name: "&dEpic"
+    key-name: "&dEpic Key"
+    seconds: 10800
