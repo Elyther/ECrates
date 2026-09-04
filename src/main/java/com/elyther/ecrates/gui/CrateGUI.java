@@ -1,7 +1,6 @@
 package com.elyther.ecrates.gui;
 
 import com.elyther.ecrates.ECrates;
-import com.elyther.ecrates.manager.KeyManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
@@ -14,62 +13,145 @@ import java.util.List;
 
 public class CrateGUI {
 
+    public static final String TYPE =
+            "ECrates-CRATE";
+
     public static void open(
             ECrates plugin,
             Player player,
             String crate
     ) {
 
-        String title = plugin.getConfig()
-                .getString(
-                        "gui.crate-title",
-                        "&8%crate%"
-                )
-                .replace("%crate%", crate);
+        String name =
+                plugin.getConfig()
+                        .getString(
+                                "crates."
+                                        + crate
+                                        + ".display-name",
+                                crate
+                        );
 
-        title = ChatColor.translateAlternateColorCodes(
-                '&',
-                title
-        );
+        name =
+                ChatColor.translateAlternateColorCodes(
+                        '&',
+                        name
+                );
 
-        Inventory inv = Bukkit.createInventory(
-                null,
-                54,
-                title
-        );
+        String title =
+                plugin.getConfig()
+                        .getString(
+                                "gui.crate-title",
+                                "&8%crate% Crate"
+                        )
+                        .replace(
+                                "%crate%",
+                                name
+                        );
+
+        title =
+                ChatColor.translateAlternateColorCodes(
+                        '&',
+                        title
+                );
+
+        Inventory inventory =
+                Bukkit.createInventory(
+                        new CrateHolder(crate),
+                        54,
+                        title
+                );
 
         List<ItemStack> rewards =
                 plugin.getCrateManager()
                         .getRewards(crate);
 
-        int slot = 0;
+        for (int i = 0;
+             i < rewards.size() && i < 45;
+             i++) {
 
-        for (ItemStack item : rewards) {
+            ItemStack item =
+                    rewards.get(i).clone();
 
-            if (slot >= 45) {
-                break;
+            ItemMeta meta =
+                    item.getItemMeta();
+
+            if (meta != null) {
+
+                var lore =
+                        meta.getLore();
+
+                if (lore == null) {
+                    lore =
+                            new java.util.ArrayList<>();
+                } else {
+                    lore =
+                            new java.util.ArrayList<>(
+                                    lore
+                            );
+                }
+
+                lore.add("");
+                lore.add(
+                        ChatColor.YELLOW
+                                + "Click to select"
+                );
+
+                meta.setLore(lore);
+
+                item.setItemMeta(meta);
             }
 
-            inv.setItem(
-                    slot++,
-                    item.clone()
+            inventory.setItem(
+                    i,
+                    item
             );
         }
 
-        ItemStack keyInfo =
-                new ItemStack(Material.TRIPWIRE_HOOK);
+        ItemStack keys =
+                new ItemStack(
+                        Material.TRIPWIRE_HOOK
+                );
 
-        ItemMeta meta = keyInfo.getItemMeta();
+        ItemMeta keyMeta =
+                keys.getItemMeta();
 
-        meta.setDisplayName(
-                ChatColor.LIGHT_PURPLE +
-                        "Your Keys"
+        keyMeta.setDisplayName(
+                ChatColor.GOLD
+                        + "Virtual Keys: "
+                        + ChatColor.WHITE
+                        + plugin.getKeyManager()
+                        .getKeys(
+                                player,
+                                crate
+                        )
         );
 
-        keyInfo.setItemMeta(meta);
+        keys.setItemMeta(keyMeta);
 
-        inv.setItem(49, keyInfo);
+        inventory.setItem(
+                49,
+                keys
+        );
 
-        player.openInventory(inv);
+        player.openInventory(inventory);
+    }
+
+    public static class CrateHolder
+            implements org.bukkit.inventory.InventoryHolder {
+
+        private final String crate;
+
+        public CrateHolder(String crate) {
+            this.crate = crate;
+        }
+
+        public String getCrate() {
+            return crate;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return null;
+        }
     }
 }
