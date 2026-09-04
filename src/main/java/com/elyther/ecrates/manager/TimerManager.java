@@ -2,175 +2,300 @@ package com.elyther.ecrates.manager;
 
 import com.elyther.ecrates.ECrates;
 import org.bukkit.Bukkit;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.Material;
+import org.bukkit.configuration.file.YamlConfiguration;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.io.IOException;
 import java.util.UUID;
 
 public class TimerManager {
 
     private final ECrates plugin;
 
-    private final Map<UUID, Map<String, Long>> timers = new HashMap<>();
+    private final File file;
+    private final YamlConfiguration data;
 
-    private int task;
+    private int taskId = -1;
 
     public TimerManager(ECrates plugin) {
+
         this.plugin = plugin;
+
+        file = new File(
+                plugin.getDataFolder(),
+                "timers.yml"
+        );
+
+        if (!file.exists()) {
+
+            try {
+                file.createNewFile();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        data =
+                YamlConfiguration
+                        .loadConfiguration(file);
     }
 
     public void start() {
 
-        task = Bukkit.getScheduler().runTaskTimer(
-                plugin,
-                () -> {
-
-                    for (Player player : Bukkit.getOnlinePlayers()) {
-
-                        for (String crate :
-                                plugin.getConfig()
-                                        .getConfigurationSection("crates")
-                                        .getKeys(false)) {
-
-                            tick(player, crate);
-                        }
-                    }
-
-                },
-                20L,
-                20L
-        ).getTaskId();
-    }
-
-    private void tick(Player player, String crate) {
-
-        long now = System.currentTimeMillis();
-
-        Map<String, Long> playerTimers =
-                timers.computeIfAbsent(
-                        player.getUniqueId(),
-                        k -> new HashMap<>()
-                );
-
-        long end;
-
-        if (!playerTimers.containsKey(crate)) {
-
-            long seconds = plugin.getConfig()
-                    .getLong(
-                            "crates." + crate + ".seconds",
-                            plugin.getConfig().getLong("timer.default-seconds", 3600)
-                    );
-
-            end = now + (seconds * 1000L);
-
-            playerTimers.put(crate, end);
-
+        if (!plugin.getConfig()
+                .getBoolean(
+                        "timer.enabled",
+                        true
+                )) {
             return;
         }
 
-        end = playerTimers.get(crate);
+        taskId =
+                Bukkit.getScheduler()
+                        .runTaskTimer(
+                                plugin,
+                                this::tick,
+                                20L,
+                                20L
+                        )
+                        .getTaskId();
+    }
 
-        if (now >= end) {
+    private void tick() {
 
-            giveKey(player, crate);
+        long now =
+                System.currentTimeMillis();
 
-            if (plugin.getConfig().getBoolean("timer.restart-after-key", true)) {
+        for (Player player :
+                Bukkit.getOnlinePlayers()) {
 
-                long seconds = plugin.getConfig()
-                        .getLong(
-                                "crates." + crate + ".seconds",
-                                plugin.getConfig().getLong("timer.default-seconds", 3600)
-                        );
+            var section =
+                    plugin.getConfig()
+                            .getConfigurationSection(
+                                    "crates"
+                            );
 
-                playerTimers.put(
+            if (section == null) {
+                continue;
+            }
+
+            for (String crate :
+                    section.getKeys(false)) {
+
+                checkTimer(
+                        player,
                         crate,
-                        now + seconds * 1000L
+                        now
                 );
-
-            } else {
-
-                playerTimers.remove(crate);
             }
         }
     }
 
-    public long getRemainingSeconds(Player player, String crate) {
+    private void checkTimer(
+            Player player,
+            String crate,
+            long now
+    ) {
 
-        Map<String, Long> map = timers.get(player.getUniqueId());
+        UUID uuid =
+                player.getUniqueId();
 
-        if (map == null || !map.containsKey(crate)) {
+        String path =
+                "players."
+                        + uuid
+                        + "."
+                        + crate;
+
+        long end =
+                data.getLong(path, -1);
+
+        if (end == -1) {
+
+            startTimer(
+                    player,
+                    crate,
+                    now
+            );
+
+            return;
+        }
+
+        if (end <= now) {
+
+            plugin.getKeyManager()
+                    .addKey(
+                            player,
+                            crate,
+                            1
+                    );
+
+            player.sendMessage(
+                    plugin.getMessageManager()
+                            .get(
+                                    player,
+                                    "key-received",
+                                    "%crate%",
+                                    getCrateName(crate)
+                            )
+            );
+
+            player.playSound(
+                    player.getLocation(),
+                    Sound.ENTITY_PLAYER_LEVELUP,
+                    1f,
+                    1.2f
+            );
+
+            startTimer(
+                    player,
+                    crate,
+                    now
+            );
+        }
+    }
+
+    public void startTimer(
+            Player player,
+            String crate
+    ) {
+
+        startTimer(
+                player,
+                crate,
+                System.currentTimeMillis()
+        );
+    }
+
+    private void startTimer(
+            Player player,
+            String crate,
+            long now
+    ) {
+
+        long seconds =
+                plugin.getConfig()
+                        .getLong(
+                                "crates."
+                                        + crate
+                                        + ".seconds",
+                                plugin.getConfig()
+                                        .getLong(
+                                                "timer.default-seconds",
+                                                3600
+                                        )
+                        );
+
+        long end =
+                now + (seconds * 1000L);
+
+        data.set(
+                "players."
+                        + player.getUniqueId()
+                        + "."
+                        + crate,
+                end
+        );
+
+        save();
+    }
+
+    public long getRemainingSeconds(
+            Player player,
+            String crate
+    ) {
+
+        String path =
+                "players."
+                        + player.getUniqueId()
+                        + "."
+                        + crate;
+
+        long end =
+                data.getLong(path, -1);
+
+        if (end == -1) {
 
             return plugin.getConfig()
                     .getLong(
-                            "crates." + crate + ".seconds",
+                            "crates."
+                                    + crate
+                                    + ".seconds",
                             3600
                     );
         }
 
-        long remaining =
-                (map.get(crate) - System.currentTimeMillis()) / 1000L;
+        long seconds =
+                (end - System.currentTimeMillis())
+                        / 1000L;
 
-        return Math.max(0, remaining);
+        return Math.max(
+                0,
+                seconds
+        );
     }
 
-    public String getFormatted(Player player, String crate) {
+    public String getFormatted(
+            Player player,
+            String crate
+    ) {
 
-        long seconds = getRemainingSeconds(player, crate);
-
-        long minutes = seconds / 60;
-        long secs = seconds % 60;
-
-        return String.format("%02d:%02d", minutes, secs);
-    }
-
-    private void giveKey(Player player, String crate) {
-
-        String keyName = plugin.getConfig()
-                .getString(
-                        "crates." + crate + ".key-name",
-                        "&f" + crate + " Key"
+        long seconds =
+                getRemainingSeconds(
+                        player,
+                        crate
                 );
 
-        ItemStack key = new ItemStack(Material.TRIPWIRE_HOOK);
+        long minutes =
+                seconds / 60;
 
-        var meta = key.getItemMeta();
+        long secs =
+                seconds % 60;
 
-        meta.setDisplayName(
-                org.bukkit.ChatColor.translateAlternateColorCodes(
-                        '&',
-                        keyName
+        return String.format(
+                "%02d:%02d",
+                minutes,
+                secs
+        );
+    }
+
+    private String getCrateName(
+            String crate
+    ) {
+
+        return plugin.getConfig()
+                .getString(
+                        "crates."
+                                + crate
+                                + ".display-name",
+                        crate
                 )
-        );
-
-        meta.getPersistentDataContainer().set(
-                KeyManager.KEY,
-                org.bukkit.persistence.PersistentDataType.STRING,
-                crate
-        );
-
-        key.setItemMeta(meta);
-
-        player.getInventory().addItem(key);
-
-        player.playSound(
-                player.getLocation(),
-                org.bukkit.Sound.ENTITY_PLAYER_LEVELUP,
-                1f,
-                1.2f
-        );
+                .replace("&a", "")
+                .replace("&b", "")
+                .replace("&c", "")
+                .replace("&d", "")
+                .replace("&e", "")
+                .replace("&f", "");
     }
 
     public void save() {
 
-        // Timerlər runtime-da saxlanılır.
-        // Server restart üçün növbəti versiyada persistent timer də əlavə edə bilərik.
+        try {
+            data.save(file);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void stop() {
-        Bukkit.getScheduler().cancelTask(task);
+
+        if (taskId != -1) {
+
+            Bukkit.getScheduler()
+                    .cancelTask(taskId);
+
+            taskId = -1;
+        }
     }
 }
