@@ -193,7 +193,7 @@ public class GUIListener implements Listener {
         /*
          * Current KeyManager uses physical crate keys.
          */
-        if (!KeyManager.removeKey(player, crate)) {
+        if (!new KeyManager().removeKey(player, crate)) {
 
             player.removeMetadata("ecrates_selected", plugin);
             player.closeInventory();
