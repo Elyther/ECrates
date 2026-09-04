@@ -3,47 +3,31 @@ package com.elyther.ecrates.gui;
 import com.elyther.ecrates.ECrates;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class CrateEditorGUI {
 
-    private final ECrates plugin;
-    private final Player player;
-    private final String crate;
-
-    public CrateEditorGUI(
+    public static void open(
             ECrates plugin,
             Player player,
             String crate
     ) {
 
-        this.plugin = plugin;
-        this.player = player;
-        this.crate = crate;
-    }
+        String title =
+                ChatColor.DARK_GRAY
+                        + "Edit Rewards: "
+                        + crate;
 
-    public void open() {
-
-        String title = plugin.getConfig()
-                .getString(
-                        "gui.editor-title",
-                        "&8%crate% Rewards"
-                )
-                .replace("%crate%", crate);
-
-        title = ChatColor.translateAlternateColorCodes(
-                '&',
-                title
-        );
-
-        Inventory inv =
+        Inventory inventory =
                 Bukkit.createInventory(
-                        null,
+                        new EditorHolder(crate),
                         54,
                         title
                 );
@@ -52,15 +36,57 @@ public class CrateEditorGUI {
                 plugin.getCrateManager()
                         .getRewards(crate);
 
-        for (int i = 0; i < rewards.size() && i < 45; i++) {
+        for (int i = 0;
+             i < rewards.size() && i < 45;
+             i++) {
 
-            inv.setItem(
+            inventory.setItem(
                     i,
                     rewards.get(i).clone()
             );
         }
 
-        player.openInventory(inv);
+        ItemStack save =
+                new ItemStack(
+                        Material.LIME_WOOL
+                );
+
+        ItemMeta saveMeta =
+                save.getItemMeta();
+
+        saveMeta.setDisplayName(
+                ChatColor.GREEN
+                        + "SAVE"
+        );
+
+        save.setItemMeta(saveMeta);
+
+        inventory.setItem(
+                49,
+                save
+        );
+
+        ItemStack cancel =
+                new ItemStack(
+                        Material.RED_WOOL
+                );
+
+        ItemMeta cancelMeta =
+                cancel.getItemMeta();
+
+        cancelMeta.setDisplayName(
+                ChatColor.RED
+                        + "CANCEL"
+        );
+
+        cancel.setItemMeta(cancelMeta);
+
+        inventory.setItem(
+                53,
+                cancel
+        );
+
+        player.openInventory(inventory);
     }
 
     public static void save(
@@ -70,25 +96,52 @@ public class CrateEditorGUI {
             Inventory inventory
     ) {
 
-        List<ItemStack> rewards = new ArrayList<>();
+        List<ItemStack> rewards =
+                new ArrayList<>();
 
         for (int i = 0; i < 45; i++) {
 
-            ItemStack item = inventory.getItem(i);
+            ItemStack item =
+                    inventory.getItem(i);
 
             if (item != null &&
-                    item.getType() != org.bukkit.Material.AIR) {
+                    item.getType()
+                            != Material.AIR) {
 
-                rewards.add(item.clone());
+                rewards.add(
+                        item.clone()
+                );
             }
         }
 
         plugin.getCrateManager()
-                .setRewards(crate, rewards);
+                .setRewards(
+                        crate,
+                        rewards
+                );
 
         player.sendMessage(
-                ChatColor.GREEN +
-                        "Rewards saved."
+                ChatColor.GREEN
+                        + "Rewards saved!"
         );
+    }
+
+    public static class EditorHolder
+            implements org.bukkit.inventory.InventoryHolder {
+
+        private final String crate;
+
+        public EditorHolder(String crate) {
+            this.crate = crate;
+        }
+
+        public String getCrate() {
+            return crate;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return null;
+        }
     }
 }
